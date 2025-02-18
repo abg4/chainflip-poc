@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import {CFReceiver} from "../src/CFReceiver.sol";
 import {IERC20} from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {Test} from "forge-std/Test.sol";
+import {Test} from "lib/forge-std/src/Test.sol";
 
 contract CFReceiverTest is Test {
     address internal immutable USER = makeAddr("User");
