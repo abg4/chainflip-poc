@@ -33,16 +33,18 @@ contract CFReceiver is ICFReceiver {
 
     address public cfVault;
     address public owner;
+    address public wrappedNative;
     V3SpokePoolInterface public spokePool;
 
     event CFReceived(uint32 indexed srcChain, bytes srcAddress, address indexed token, uint256 amount);
     event DrainedTokens(address indexed recipient, address indexed token, uint256 indexed amount);
 
-    constructor(address _cfVault, address _spokePool) {
+    constructor(address _cfVault, address _spokePool, address _wrappedNative) {
         owner = msg.sender;
 
         cfVault = _cfVault;
         spokePool = V3SpokePoolInterface(_spokePool);
+        wrappedNative = _wrappedNative;
     }
 
     //////////////////////////////////////////////////////////////
@@ -88,7 +90,6 @@ contract CFReceiver is ICFReceiver {
         (
             address depositor,
             address recipient,
-            address inputToken,
             address outputToken,
             uint256 destinationChainId,
             address exclusiveRelayer,
@@ -98,20 +99,19 @@ contract CFReceiver is ICFReceiver {
             bytes memory depositMessage,
             int256 relayFeePercentage,
         ) = abi.decode(
-            message,
-            (address, address, address, address, uint256, address, uint32, uint32, uint32, bytes, int256, address)
+            message, (address, address, address, uint256, address, uint32, uint32, uint32, bytes, int256, address)
         );
 
         uint256 outputAmount = _computeAmountPostFees(amount, relayFeePercentage);
 
         if (token != _NATIVE_ADDR) {
-            SafeERC20.forceApprove(IERC20(inputToken), address(spokePool), type(uint256).max);
+            SafeERC20.forceApprove(IERC20(token), address(spokePool), type(uint256).max);
         }
 
         spokePool.depositV3{value: token == _NATIVE_ADDR ? amount : 0}(
             depositor,
             recipient,
-            inputToken,
+            token == _NATIVE_ADDR ? wrappedNative : token,
             outputToken,
             amount,
             outputAmount,
@@ -124,10 +124,10 @@ contract CFReceiver is ICFReceiver {
         );
 
         if (token != _NATIVE_ADDR) {
-            SafeERC20.forceApprove(IERC20(inputToken), address(spokePool), 0);
+            SafeERC20.forceApprove(IERC20(token), address(spokePool), 0);
         }
 
-        _drainRemainingTokens(inputToken, payable(recipient));
+        _drainRemainingTokens(token, payable(recipient));
     }
 
     function _drainRemainingTokens(address token, address payable destination) internal {
@@ -139,7 +139,10 @@ contract CFReceiver is ICFReceiver {
             }
         } else {
             uint256 amount = address(this).balance;
-            destination.sendValue(amount);
+            if (amount > 0) {
+                destination.sendValue(amount);
+                emit DrainedTokens(destination, token, amount);
+            }
         }
     }
 

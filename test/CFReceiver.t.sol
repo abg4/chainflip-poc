@@ -20,19 +20,18 @@ contract CFReceiverTest is Test {
 
     function setUp() public {
         vm.prank(owner);
-        receiver = new CFReceiver(cfVault, spokePool);
+        receiver = new CFReceiver(cfVault, spokePool, WETH);
     }
 
     function testCfReceiveEth() public {
         uint32 srcChain = 1;
-        uint256 inputAmount = 1 ether;
+        uint256 amount = 1 ether;
         address arbWeth = address(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
         int256 relayFeePercentage = 123236000000000;
 
         bytes memory message = abi.encode(
             USER, // depositor
             USER, // recipient
-            WETH, // inputToken
             arbWeth, // ARB WETH
             42161, // destinationChainId
             address(0), // exclusiveRelayer
@@ -46,25 +45,24 @@ contract CFReceiverTest is Test {
         uint256 spokePoolBalanceBefore = IERC20(WETH).balanceOf(spokePool);
 
         // Send ETH with the call since we're using native token
-        vm.deal(address(receiver), inputAmount);
+        vm.deal(address(receiver), amount);
 
         vm.prank(cfVault);
-        receiver.cfReceive{value: inputAmount}(srcChain, abi.encode(USER), message, NATIVE_TOKEN, inputAmount);
+        receiver.cfReceive{value: amount}(srcChain, abi.encode(USER), message, NATIVE_TOKEN, amount);
 
-        assertEq(IERC20(WETH).balanceOf(spokePool), spokePoolBalanceBefore + inputAmount);
-        assertEq(USER.balance, 0);
+        assertEq(IERC20(WETH).balanceOf(spokePool), spokePoolBalanceBefore + amount);
+        assertEq(IERC20(WETH).balanceOf(address(receiver)), 0);
     }
 
     function testCfReceiveUsdc() public {
         uint32 srcChain = 1;
-        uint256 inputAmount = 50e6;
+        uint256 amount = 50e6;
         address arbUSDC = address(0xaf88d065e77c8cC2239327C5EDb3A432268e5831);
         int256 relayFeePercentage = 123236000000000;
 
         bytes memory message = abi.encode(
             USER, // depositor
             USER, // recipient
-            address(USDC), // inputToken
             arbUSDC, // outputToken
             42161, // destinationChainId
             address(0), // exclusiveRelayer
@@ -76,15 +74,15 @@ contract CFReceiverTest is Test {
         );
 
         // Send USDC with the call since we're using ERC20
-        deal(address(USDC), address(receiver), inputAmount);
+        deal(address(USDC), address(receiver), amount);
 
         uint256 spokePoolBalanceBefore = IERC20(address(USDC)).balanceOf(spokePool);
 
         vm.prank(cfVault);
 
-        receiver.cfReceive{value: 0}(srcChain, abi.encode(USER), message, address(USDC), inputAmount);
+        receiver.cfReceive{value: 0}(srcChain, abi.encode(USER), message, address(USDC), amount);
 
-        assertEq(IERC20(address(USDC)).balanceOf(spokePool), spokePoolBalanceBefore + inputAmount);
+        assertEq(IERC20(address(USDC)).balanceOf(spokePool), spokePoolBalanceBefore + amount);
         assertEq(IERC20(address(USDC)).balanceOf(address(receiver)), 0);
     }
 }
