@@ -33,7 +33,7 @@ contract CFReceiver is ICFReceiver {
 
     address public cfVault;
     address public owner;
-    address public wrappedNative;
+    address public immutable WRAPPED_NATIVE;
     V3SpokePoolInterface public spokePool;
 
     event CFReceived(uint32 indexed srcChain, bytes srcAddress, address indexed token, uint256 amount);
@@ -44,7 +44,7 @@ contract CFReceiver is ICFReceiver {
 
         cfVault = _cfVault;
         spokePool = V3SpokePoolInterface(_spokePool);
-        wrappedNative = _wrappedNative;
+        WRAPPED_NATIVE = _wrappedNative;
     }
 
     //////////////////////////////////////////////////////////////
@@ -111,7 +111,7 @@ contract CFReceiver is ICFReceiver {
         spokePool.depositV3{value: token == _NATIVE_ADDR ? amount : 0}(
             depositor,
             recipient,
-            token == _NATIVE_ADDR ? wrappedNative : token,
+            token == _NATIVE_ADDR ? WRAPPED_NATIVE : token,
             outputToken,
             amount,
             outputAmount,
